@@ -28,6 +28,11 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, github-actions]
+    ignore:
+      # gittools/actions v4 emits a BOM-prefixed JSON that the runner JSON parser rejects.
+      # Re-evaluate when GitTools fixes upstream.
+      - dependency-name: gittools/actions
+        update-types: [version-update:semver-major]
     groups:
       docker-actions:
         patterns: [docker/*]
