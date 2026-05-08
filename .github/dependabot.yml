@@ -7,6 +7,10 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, npm]
+    ignore:
+      # Tailwind v4 is a breaking rewrite; upgrade is a planned project, not a dep bump.
+      - dependency-name: tailwindcss
+        update-types: [version-update:semver-major]
     groups:
       vite:
         patterns: [vite, "@vitejs/*", vitest]
