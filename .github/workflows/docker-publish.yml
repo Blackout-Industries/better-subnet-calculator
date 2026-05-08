@@ -3,34 +3,27 @@ name: Build and publish
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
-    name: Test, build, and (on main/tags) publish
+  test:
+    name: Test and validate build
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Lowercase image name
-        id: image
-        run: echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,40 +38,102 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build runtime image (amd64 only, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          platforms: linux/amd64
+          push: false
+          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish:
+    name: Publish multi-arch image to GHCR
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.0.3
+        with:
+          versionSpec: '6.x'
+
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3.0.3
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
+      - name: Lowercase image name
+        id: image
+        run: echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.title=better-subnet-calculator
-            org.opencontainers.image.description=Self-hosted IPv4 subnet calculator
-            org.opencontainers.image.licenses=MIT
+      - name: Compute tags
+        id: tags
+        run: |
+          REPO="${{ env.REGISTRY }}/${{ steps.image.outputs.name }}"
+          V="${{ steps.gitversion.outputs.majorMinorPatch }}"
+          MAJOR="${{ steps.gitversion.outputs.major }}"
+          MAJORMINOR="${{ steps.gitversion.outputs.major }}.${{ steps.gitversion.outputs.minor }}"
+          TAGS="${REPO}:${V},${REPO}:${MAJORMINOR},${REPO}:${MAJOR},${REPO}:latest"
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and (conditionally) push
+      - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
           context: .
           target: runtime
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=better-subnet-calculator
+            org.opencontainers.image.description=Self-hosted IPv4 subnet calculator
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Tag git commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V="v${{ steps.tags.outputs.version }}"
+          if gh api "repos/${{ github.repository }}/git/refs/tags/${V}" >/dev/null 2>&1; then
+            echo "Tag ${V} already exists, skipping"
+          else
+            gh api "repos/${{ github.repository }}/git/refs" \
+              -X POST \
+              -f ref="refs/tags/${V}" \
+              -f sha="${{ github.sha }}"
+            echo "Created tag ${V}"
+          fi
