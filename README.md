@@ -1,5 +1,10 @@
 # better-subnet-calculator
 
+[![Build and publish](https://github.com/Blackout-Industries/better-subnet-calculator/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Blackout-Industries/better-subnet-calculator/actions/workflows/docker-publish.yml)
+[![CodeQL](https://github.com/Blackout-Industries/better-subnet-calculator/actions/workflows/codeql.yml/badge.svg)](https://github.com/Blackout-Industries/better-subnet-calculator/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Blackout-Industries/better-subnet-calculator/badge)](https://scorecard.dev/viewer/?uri=github.com/Blackout-Industries/better-subnet-calculator)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A self-hosted, fully client-side IPv4 subnet calculator. Inspired by
 [davidc.net's Visual Subnet Calculator](https://www.davidc.net/sites/default/subnets/subnets.html),
 rewritten with a modern UI, dark mode, a tree view, multi-tab workspaces, and
@@ -7,6 +12,8 @@ JSON import/export.
 
 Runs entirely in your browser. The container is a static nginx image &mdash;
 no backend, no telemetry, no network calls.
+
+**Demo:** <https://blackout-industries.github.io/better-subnet-calculator/>
 
 ## Features
 
