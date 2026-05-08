@@ -181,7 +181,7 @@ jobs:
         run: echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
 
       - name: Run Trivy on the published image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}@${{ needs.publish.outputs.image-digest }}
           format: sarif
