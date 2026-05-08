@@ -9,7 +9,6 @@ services:
       - "8080:80"
     restart: unless-stopped
 
-  # `docker compose --profile dev up` for hot-reload dev server on :5173
   dev:
     profiles: ["dev"]
     build:
@@ -23,7 +22,6 @@ services:
       - /app/node_modules
     command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]
 
-  # `docker compose --profile test run --rm test` for one-shot vitest
   test:
     profiles: ["test"]
     build:

@@ -48,28 +48,43 @@ make test
 CI runs the same command on every push and pull request. Pull requests must
 be green before merging.
 
-## Pull requests
+## Branching and pull requests
 
-1. Fork the repository or create a feature branch.
+Trunk-based development. `main` is always releasable.
+
+1. Branch from `main` with the prefix `feature/`:
+
+   ```sh
+   git switch -c feature/short-description main
+   ```
+
 2. Make focused changes &mdash; one fix or feature per PR.
 3. Run `make test` and `make build` locally.
-4. Open a PR against `main`. Describe what changed and why.
-5. The CI workflow runs the test suite and a production build. The publish
-   workflow runs only on push to `main` and on tags.
+4. Open a PR from `feature/*` into `main`. Describe what changed and why.
+5. The pipeline runs the `test` job on every PR (vitest + amd64 build, no
+   push). The `publish` job only runs after a merge to `main`.
 
-## Releases
+Direct pushes to `main` are blocked by branch protection. All changes flow
+through PRs.
 
-Tag a commit on `main` with `vX.Y.Z`:
+## Versioning and releases
 
-```sh
-git tag v0.2.0
-git push origin v0.2.0
-```
+Versions are derived automatically from git history by
+[GitVersion](https://gitversion.net/). Configuration lives in
+[GitVersion.yml](GitVersion.yml).
 
-The publish workflow builds a multi-arch image (`linux/amd64`, `linux/arm64`)
-and pushes it to `ghcr.io/blackout-industries/better-subnet-calculator` with
-tags for the version, the major.minor, the major, and `latest` (when the tag
-is on `main`).
+- Each merge to `main` increments the patch version by default.
+- To bump minor or major, include `+semver: minor` or `+semver: major` in the
+  commit message.
+- After publishing, the workflow tags the commit on GitHub with `vX.Y.Z`.
+
+The published image at
+`ghcr.io/blackout-industries/better-subnet-calculator` is tagged with:
+
+- `X.Y.Z` &mdash; the exact version
+- `X.Y` &mdash; the latest patch in this minor line
+- `X` &mdash; the latest minor in this major line
+- `latest` &mdash; the most recent main build
 
 ## Reporting issues
 
