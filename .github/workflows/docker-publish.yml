@@ -1,9 +1,11 @@
-name: Publish container
+name: Build and publish
 
 on:
   push:
     branches: [main]
     tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -11,8 +13,8 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  publish:
-    name: Build and push to GHCR
+  build:
+    name: Test, build, and (on main/tags) publish
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,7 +35,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Run vitest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          push: false
+          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -58,23 +71,13 @@ jobs:
             org.opencontainers.image.description=Self-hosted IPv4 subnet calculator
             org.opencontainers.image.licenses=MIT
 
-      - name: Run tests before publishing
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: test
-          push: false
-          load: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push multi-arch image
+      - name: Build and (conditionally) push
         uses: docker/build-push-action@v6
         with:
           context: .
           target: runtime
-          platforms: linux/amd64,linux/arm64
-          push: true
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
