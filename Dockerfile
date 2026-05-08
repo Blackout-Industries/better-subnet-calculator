@@ -19,7 +19,12 @@ RUN npm test
 FROM deps AS build
 WORKDIR /app
 COPY . .
+ARG VITE_BASE=/
+ENV VITE_BASE=$VITE_BASE
 RUN npm run build
+
+FROM scratch AS dist
+COPY --from=build /app/dist /
 
 FROM nginx:alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html

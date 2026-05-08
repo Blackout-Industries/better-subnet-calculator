@@ -1,0 +1,41 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, npm]
+    groups:
+      vite:
+        patterns: [vite, "@vitejs/*", vitest]
+      react:
+        patterns: [react, react-dom, "@types/react*"]
+      tailwind:
+        patterns: [tailwindcss, postcss, autoprefixer]
+      typescript:
+        patterns: [typescript, "@types/*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, github-actions]
+    groups:
+      docker-actions:
+        patterns: [docker/*]
+      gittools:
+        patterns: [gittools/*]
+      codeql:
+        patterns: [github/codeql-action]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, docker]
